@@ -31,16 +31,21 @@ image = cv2.imread("example.jpg")
 # graycale, blurring it, and computing an edge map
 image = imutils.resize(image, height=500)
 cv2.imshow('resize',image)
+image = image[150:500, 80:300]
+#convscale=cv2.convertScaleAbs(image,alpha=0.2,beta=50)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 cv2.imshow('gray',gray)
-blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+blurred = cv2.GaussianBlur(gray, (5, 5), 2)
 cv2.imshow('blurred',blurred)
-edged = cv2.Canny(blurred, 50, 200, 255)
+edged = cv2.Canny(blurred, 70, 5, 160)
 cv2.imshow('edged',edged)
 # find contours in the edge map, then sort them by their
 # size in descending order
-cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+cnts, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+cv2.drawContours( image, cnts, -1, (255,0,0), 3, cv2.LINE_AA, hierarchy, 1 )
+cv2.imshow('contours', image) # выводим итоговое изображение в окно
+
+
 cnts = imutils.grab_contours(cnts)
 cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
 displayCnt = None
