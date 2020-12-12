@@ -4,46 +4,79 @@ Created on Thu Dec 10 21:17:43 2020
 
 @author: Evgeniy
 """
-from __future__ import print_function
-from builtins import input
-import cv2 as cv
+import cv2
+import pytesseract
 import numpy as np
-import argparse
-import imutils
-# Read image given by user
-parser = argparse.ArgumentParser(description='Code for Changing the contrast and brightness of an image! tutorial.')
-parser.add_argument('--input', help='Path to input image.', default='example.jpg')
-args = parser.parse_args()
-image = cv.imread(cv.samples.findFile(args.input))
 
-if image is None:
-    print('Could not open or find the image: ', args.input)
-    exit(0)
-image = imutils.resize(image, height=500)
 
-new_image = np.zeros(image.shape, image.dtype)
-alpha = 1.0 # Simple contrast control
-beta = 0    # Simple brightness control
-# Initialize values
-print(' Basic Linear Transforms ')
-print('-------------------------')
-try:
-    alpha = float(input('* Enter the alpha value [1.0-3.0]: '))
-    beta = int(input('* Enter the beta value [0-100]: '))
-except ValueError:
-    print('Error, not a number')
-# Do the operation new_image(i,j) = alpha*image(i,j) + beta
-# Instead of these 'for' loops we could have used simply:
-# new_image = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
-# but we wanted to show you how to access the pixels :)
+def get_grayscale(image): return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # noise removal
+def remove_noise(image): return cv2.medianBlur(image,5) #thresholding
+def thresholding(image): return cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1] #dilation
+def dilate(image): 
+    kernel = np.ones((5,5),np.uint8) 
+    return cv2.dilate(image, kernel, iterations = 1) #erosion
+def erode(image): 
+    kernel = np.ones((5,5),np.uint8) 
+    return cv2.erode(image, kernel, iterations = 1) #opening - erosion followed by dilation
+def opening(image): 
+    kernel = np.ones((5,5),np.uint8) 
+    return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel) #canny edge detection
+def canny(image): return cv2.Canny(image, 100, 200) #skew correction
+def deskew(image): 
+    coords = np.column_stack(np.where(image > 0)) 
+    angle = cv2.minAreaRect(coords)[-1] 
+    if angle < -45: 
+        angle = -(90 + angle) 
+    else: 
+        angle = -angle 
+        (h, w) = image.shape[:2] 
+        center = (w // 2, h // 2) 
+        M = cv2.getRotationMatrix2D(center, angle, 1.0) 
+        rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE) 
+    return rotated #template matching
+def match_template(image, template): return cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+
+# Путь для подключения tesseract
+#pytesseract.pytesseract.tesseract_cmd = 'D:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+
+# Подключение фото
+img = cv2.imread('example_crop.jpg')
+#img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+scale_percent = 90 # percent of original size
+width = int(img.shape[1] * scale_percent / 100)
+height = int(img.shape[0] * scale_percent / 100)
+dim = (width, height)
+gray = cv2.cvtColor(img, cv2.COLOR)
+
+thresh = thresholding(gray)
+opening = opening(gray)
+canny = canny(gray)
+# resize image
+resized = cv2.resize(canny, dim, interpolation = cv2.INTER_AREA)
+# Будет выведен весь текст с картинки
+config = r'--oem 3 --psm 6 outputbase digits'
+print(pytesseract.image_to_string(resized, config=config))
+
+# Делаем нечто более крутое!!!
+
+#data = pytesseract.image_to_data(img, config=config)
+
+# Перебираем данные про текстовые надписи
 """
-for y in range(image.shape[0]):
-    for x in range(image.shape[1]):
-        for c in range(image.shape[2]):
-            new_image[y,x,c] = np.clip(alpha*image[y,x,c] + beta, 0, 255)
+for i, el in enumerate(data.splitlines()):
+	if i == 0:
+		continue
+
+	el = el.split()
+	try:
+		# Создаем подписи на картинке
+		x, y, w, h = int(el[6]), int(el[7]), int(el[8]), int(el[9])
+		cv2.rectangle(img, (x, y), (w + x, h + y), (0, 0, 255), 1)
+		cv2.putText(img, el[11], (x, y), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
+	except IndexError:
+		print("Операция была пропущена")
 """
-new_image=cv.convertScaleAbs(image,alpha=alpha,beta=beta)
-cv.imshow('Original Image', image)
-cv.imshow('New Image', new_image)
-# Wait until user press some key
-cv.waitKey()
+# Отображаем фото
+cv2.imshow('Result', resized)
+#cv2.waitKey(0)
