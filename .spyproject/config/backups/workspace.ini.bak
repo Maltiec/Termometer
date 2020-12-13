@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['therm_digits.py', 'try_preview.py']
+recent_files = ['therm_digits.py', 'another_test.py', 'try_preview.py', 'model_learning.py']
 
