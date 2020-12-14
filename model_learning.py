@@ -28,6 +28,7 @@ def get_images(path):
         temp_img = Image.open(path+fname)
         #temp_img = ImageOps.grayscale(temp_img)
         temp_img = temp_img.convert("RGB")
+        temp_img = temp_img.resize((32,32))
         x = np.array([np.array(temp_img) for fname in filelist])
     return x
 
@@ -71,7 +72,7 @@ def prepare_data():
 
 def make_default_model():
     model = Sequential()
-    model.add(L.Conv2D(32, kernel_size=3,activation='relu', strides=1, padding='same', input_shape=(100, 100,3)))
+    model.add(L.Conv2D(32, kernel_size=3,activation='relu', strides=1, padding='same', input_shape=(32, 32, 3)))
     model.add(L.Conv2D(64,kernel_size=3,activation='relu', strides=1, padding='same'))
     model.add(L.MaxPooling2D())
     model.add(L.Dropout(0.25))
@@ -87,21 +88,22 @@ def make_default_model():
 
 def make_bn_model():
     model = Sequential()
-    model.add(L.Conv2D(8, kernel_size=3,activation='relu', strides=1, padding='same', input_shape=(100, 100, 3)))
-    model.add(BatchNormalization())
-    model.add(L.Conv2D(16,kernel_size=3,activation='relu', strides=1, padding='same'))
-    model.add(BatchNormalization())
+    model.add(L.Conv2D(16, kernel_size=3,activation='sigmoidal', strides=1, padding='same', input_shape=(32, 32, 3)))
+    model.add(L.Conv2D(32,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
+    model.add(L.MaxPooling2D())
+    model.add(L.Dropout(0.25))
+    model.add(L.Conv2D(32,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
+    model.add(L.Conv2D(64,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
     model.add(L.MaxPooling2D())
     model.add(L.Dropout(0.25))
     model.add(L.Flatten()) 
-    model.add(L.Dense(32,activation='elu'))
-    model.add(BatchNormalization())
+    model.add(L.Dense(256,activation='elu'))
     model.add(L.Dropout(0.5))
     model.add(L.Dense(10,activation='softmax'))
     return model
 
-def train_model(make_model_func=make_default_model, optimizer="adam"):
-  BATCH_SIZE = 64
+def train_model(make_model_func=make_bn_model, optimizer="adam"):
+  BATCH_SIZE = 32
   EPOCHS = 10
 
   K.clear_session()
@@ -123,6 +125,6 @@ def train_model(make_model_func=make_default_model, optimizer="adam"):
   
   return model
 
-#x_train_float,y_train_oh,x_test_float,y_test_oh = prepare_data()
+x_train_float,y_train_oh,x_test_float,y_test_oh = prepare_data()
 train_model()
 
