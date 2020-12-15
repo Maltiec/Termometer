@@ -10,6 +10,7 @@ import tensorflow.keras.models as M
 import tensorflow.keras.layers as L
 import tensorflow.keras.backend as K
 import os
+from  tensorflow.keras import preprocessing
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
 import numpy as np
@@ -46,7 +47,7 @@ def prepare_data():
     x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/9/')), axis=0)
 
     x_train_flat = x_train.reshape(-1, 28*28).astype(float)
-    x_train_float = x_train_flat.astype(np.float) / 255 - 0.5
+    x_train_float = x_train_flat.astype(np.float) / 255
 
     y_train = pd.read_csv('./datasets/dataset-wb-100x100/labelsTrain.csv')
     y_train = y_train['label']
@@ -62,7 +63,7 @@ def prepare_data():
     x_test = np.concatenate((x_test, get_images('./datasets/dataset-wb-100x100/validation/8/')), axis=0)
     x_test = np.concatenate((x_test, get_images('./datasets/dataset-wb-100x100/validation/9/')), axis=0)
     x_test_flat = x_test.reshape(-1, 28*28).astype(float)
-    x_test_float = x_test_flat.astype(np.float) / 255 - 0.5
+    x_test_float = x_test_flat.astype(np.float) / 255
 
     y_test = pd.read_csv('./datasets/dataset-wb-100x100/labelsValidation.csv')
     y_test = y_test['label']
@@ -73,7 +74,7 @@ def prepare_data():
 
 def percp_model():
     model = Sequential()
-    model.add(Dense(4,activation='relu',input_shape=(x_train_float.shape[1],)))
+    model.add(Dense(4,activation='relu',input_shape=(28,28)))
     model.add(Dense(4,activation='relu',))
     model.add(Dense(4,activation='relu',)) 
     model.add(Dense(10, activation='softmax',)) # первый скрытый слой
@@ -114,7 +115,7 @@ def make_bn_model():
 
 
 def train_model(make_model_func=make_bn_model, optimizer="adam"):
-  BATCH_SIZE = 1
+  BATCH_SIZE = 32
   EPOCHS = 10
 
   K.clear_session()
@@ -127,32 +128,50 @@ def train_model(make_model_func=make_bn_model, optimizer="adam"):
   )
 
   model.fit(
-      x_train_float, y_train_oh,  # нормализованные данные
+      x_train,  # нормализованные данные
       batch_size=BATCH_SIZE,
       epochs=EPOCHS,
-      validation_data=(x_test_float, y_test_oh),
+      validation_data = x_test.batch(32),
       shuffle=True
   )
   
   return model
 
-x_train_float,y_train_oh,x_test_float,y_test_oh = prepare_data()
-train_model(make_model_func= percp_model)
-"""
-x_train = get_images('./datasets/dataset-wb-100x100/train/0/')
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/1/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/2/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/3/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/4/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/5/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/6/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/7/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/8/')), axis=0)
-x_train = np.concatenate((x_train, get_images('./datasets/dataset-wb-100x100/train/9/')), axis=0)
+#x_train_float,y_train_oh,x_test_float,y_test_oh = prepare_data()
+#train_model(make_model_func= percp_model)
 
-x_train_flat = x_train.reshape(-1, 28*28).astype(float)
-x_train_float = x_train_flat.astype(np.float) / 255 - 0.5
+x_train = tf.keras.preprocessing.image_dataset_from_directory(
+    directory = './datasets/dataset-wb-100x100/train/',
+    labels="inferred",
+    label_mode="categorical",
+    class_names=None,
+    color_mode="rgb",
+    batch_size=32,
+    image_size=(100, 100),
+    shuffle=True,
+    seed=None,
+    validation_split=None,
+    subset=None,
+    interpolation="bilinear",
+    follow_links=False,
+)
 
-y_train = pd.read_csv('./datasets/dataset-wb-100x100/labelsTrain.csv')
-y_train = y_train['label']
-"""
+x_test = tf.keras.preprocessing.image_dataset_from_directory(
+    directory = './datasets/dataset-wb-100x100/validation/',
+    labels="inferred",
+    label_mode="categorical",
+    class_names=None,
+    color_mode="rgb",
+    batch_size=32,
+    image_size=(100, 100),
+    shuffle=True,
+    seed=None,
+    validation_split=None,
+    subset=None,
+    interpolation="bilinear",
+    follow_links=False,
+)
+
+model = keras.applications.Xception(weights=None, input_shape=(100, 100,3), classes=10)
+model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+model.fit(x_train, epochs=10, validation_data=x_test)
