@@ -13,6 +13,7 @@ import os
 from  tensorflow.keras import preprocessing
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import pandas as pd
 import sklearn
@@ -98,12 +99,12 @@ def make_default_model():
 
 def make_bn_model():
     model = Sequential()
-    model.add(L.Conv2D(16, kernel_size=3,activation='sigmoidal', strides=1, padding='same', input_shape=(32, 32, 3)))
-    model.add(L.Conv2D(32,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
+    model.add(L.Conv2D(16, kernel_size=3,activation='relu', strides=1, padding='same', input_shape=(100, 100, 3)))
+    model.add(L.Conv2D(32,kernel_size=3,activation='relu', strides=1, padding='same'))
     model.add(L.MaxPooling2D())
     model.add(L.Dropout(0.25))
-    model.add(L.Conv2D(32,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
-    model.add(L.Conv2D(64,kernel_size=3,activation='sigmoidal', strides=1, padding='same'))
+    model.add(L.Conv2D(32,kernel_size=3,activation='relu', strides=1, padding='same'))
+    model.add(L.Conv2D(64,kernel_size=3,activation='relu', strides=1, padding='same'))
     model.add(L.MaxPooling2D())
     model.add(L.Dropout(0.25))
     model.add(L.Flatten()) 
@@ -126,7 +127,8 @@ def train_model(make_model_func=make_bn_model, optimizer="adam"):
       optimizer=optimizer,
       metrics=['accuracy']
   )
-
+ 
+  """   
   model.fit(
       x_train,  # нормализованные данные
       batch_size=BATCH_SIZE,
@@ -134,12 +136,18 @@ def train_model(make_model_func=make_bn_model, optimizer="adam"):
       validation_data = x_test.batch(32),
       shuffle=True
   )
+  """
+  history = model.fit(
+    train_data_gen,
+    epochs=10,
+    validation_data=test_data_gen,
+    )
   
   return model
 
 #x_train_float,y_train_oh,x_test_float,y_test_oh = prepare_data()
 #train_model(make_model_func= percp_model)
-
+"""
 x_train = tf.keras.preprocessing.image_dataset_from_directory(
     directory = './datasets/dataset-wb-100x100/train/',
     labels="inferred",
@@ -171,7 +179,39 @@ x_test = tf.keras.preprocessing.image_dataset_from_directory(
     interpolation="bilinear",
     follow_links=False,
 )
+"""
 
+def plotImages(images_arr):
+    fig, axes = plt.subplots(1, 5, figsize=(20,20))
+    axes = axes.flatten()
+    for img, ax in zip( images_arr, axes):
+        ax.imshow(img)
+        ax.axis('off')
+    plt.tight_layout()
+    plt.show()
+    
+
+train_image_generator = ImageDataGenerator(rescale=1./255)
+test_image_generator = ImageDataGenerator(rescale=1./255) # Генератор для проверочных данных
+
+train_data_gen = train_image_generator.flow_from_directory(batch_size=128,
+                                                           color_mode='rgb',
+                                                           directory='./datasets/dataset-wb-100x100/train/',
+                                                           shuffle=True,
+                                                           target_size=(100, 100),
+                                                           class_mode="categorical")
+test_data_gen = train_image_generator.flow_from_directory(batch_size=128,
+                                                           color_mode='rgb',
+                                                           directory='./datasets/dataset-wb-100x100/validation/',
+                                                           shuffle=True,
+                                                           target_size=(100, 100),
+                                                           class_mode="categorical")
+sample_training_images, sample_training_labels = next(train_data_gen)
+#plotImages(sample_training_images[:5])
+"""
 model = keras.applications.Xception(weights=None, input_shape=(100, 100,3), classes=10)
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
-model.fit(x_train, epochs=10, validation_data=x_test)
+model.fit(train_data_gen, epochs=10, validation_data=test_data_gen)
+"""
+
+train_model()
